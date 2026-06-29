@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-space-grotesk), sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+  
+  --color-neon-purple: #A855F7;
+  --color-neon-pink: #EC4899;
+  --color-neon-cyan: #22D3EE;
+  
+  --color-bg-dark: #0D0D1A;
+  --color-bg-purple-dark: #1A0A2E;
+}
+
+@layer base {
+  body {
+    background-color: #0d0d1a;
+    color: #e2e8f0;
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+}
+
+/* Custom neon Glows */
+.shadow-neon-purple {
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+.shadow-neon-pink {
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.4);
+}
+.shadow-neon-cyan {
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.4);
+}
+
+.glow-border-purple {
+  border: 1px solid rgba(168, 85, 247, 0.2);
+}
+.glow-border-purple:hover {
+  border: 1px solid rgba(168, 85, 247, 0.6);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+}
+
+/* Scanline Animation */
+@keyframes scanline {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0%;
+  }
+}
+
+.scanline-overlay {
+  position: relative;
+}
+.scanline-overlay::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 20;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+}
+
+/* Glassmorphism custom classes */
+.glass-panel {
+  background: rgba(13, 13, 26, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-panel-hover:hover {
+  background: rgba(20, 20, 40, 0.8);
+  border-color: rgba(168, 85, 247, 0.4);
+  box-shadow: 0 10px 30px -10px rgba(168, 85, 247, 0.2);
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0d1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e1b4b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
+}
+
+/* Custom orbital grid & timeline styles */
+.bg-gradient-orbital {
+  background: linear-gradient(to bottom right, #6366f1, #3b82f6, #14b8a6);
+}
+.shadow-orbital {
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+/* OrbitalGrid CSS rotation — replaces JS setInterval */
+@keyframes orbit-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes orbit-spin-reverse {
+  from { transform: translateX(-50%) rotate(0deg); }
+  to { transform: translateX(-50%) rotate(-360deg); }
+}
+@keyframes orbit-icon-spin-reverse {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+/* ProjectCarousel CSS 3D rotation — replaces JS rAF loop */
+@keyframes carousel-spin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
