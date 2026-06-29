@@ -162,7 +162,7 @@ export default function HomeContent() {
       </div>
 
       {/* Cybernetic Right Sidebar Navigation (Desktop only) */}
-      <nav className="md:flex fixed right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-6 bg-[#070714]/70 backdrop-blur-lg border border-white/10 rounded-full py-7 px-3.5 shadow-2xl select-none group/sidebar">
+      <nav className="hidden md:flex fixed right-6 top-1/2 -translate-y-1/2 z-40 flex-col items-center gap-6 bg-[#070714]/70 backdrop-blur-lg border border-white/10 rounded-full py-7 px-3.5 shadow-2xl select-none group/sidebar">
         
         {/* Core HUD status element */}
         <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse shadow-[0_0_8px_#22D3EE] mb-1" />
@@ -223,6 +223,7 @@ export default function HomeContent() {
             </div>
             <a
               href="/resume.pdf"
+              download="Khiem_Vuong_Resume.pdf"
               target="_blank"
               rel="noopener noreferrer"
               className="w-9 h-9 rounded-full bg-white/5 border border-white/10 hover:border-white/30 text-white flex items-center justify-center transition cursor-pointer hover:scale-105"
@@ -435,6 +436,7 @@ export default function HomeContent() {
               <MagneticElement range={30} strength={0.3}>
                 <a
                   href="/resume.pdf"
+                  download="Khiem_Vuong_Resume.pdf"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="border border-neon-pink/25 bg-neon-pink/5 hover:bg-neon-pink/10 hover:border-neon-pink/50 backdrop-blur-xl text-neon-pink font-mono text-[10px] font-black uppercase tracking-widest py-3.5 px-6 rounded-xl transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(236,72,153,0.1)] hover:shadow-[0_0_20px_rgba(236,72,153,0.25)]"
@@ -575,7 +577,7 @@ export default function HomeContent() {
                   <div className="flex flex-col gap-2">
                     <span className="font-mono text-[11px] text-neon-cyan font-bold uppercase tracking-widest">Frontend</span>
                     <div className="flex flex-wrap gap-1.5">
-                      {['React.js (3 yrs)', 'Next.js', 'Tailwind CSS', 'Framer Motion', 'TypeScript', 'HTML/CSS'].map(s => (
+                      {['React.js (2 yrs)', 'Next.js', 'Tailwind CSS', 'Framer Motion', 'TypeScript', 'HTML/CSS'].map(s => (
                         <span key={s} className="font-mono text-xs text-white/80 bg-white/5 border border-neon-cyan/20 px-2.5 py-1 rounded-lg">
                           {s}
                         </span>
