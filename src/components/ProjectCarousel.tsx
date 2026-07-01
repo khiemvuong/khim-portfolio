@@ -24,6 +24,14 @@ export default function ProjectCarousel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const spinnerRef = useRef<HTMLDivElement>(null);
 
+  // Slideshow state and refs
+  const [slideshowState, setSlideshowState] = React.useState<{
+    activeProjectId: string | null;
+    currentImageIndex: number;
+    isPlaying: boolean;
+  } | null>(null);
+  const slideshowIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const items = PROJECTS_DATA;
   const radius = 380;
   const anglePerItem = 360 / items.length;
@@ -42,6 +50,13 @@ export default function ProjectCarousel() {
     };
     frameId = requestAnimationFrame(rotate);
     return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  // Cleanup slideshow timers on unmount
+  useEffect(() => {
+    return () => {
+      if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current);
+    };
   }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -65,98 +80,174 @@ export default function ProjectCarousel() {
     dragStartRef.current = null;
   }, []);
 
-  const renderCard = (project: Project, opacity: number) => (
-    <LiquidGlassCard
-      draggable={false}
-      borderRadius="16px"
-      blurIntensity="xl"
-      glowIntensity="xs"
-      shadowIntensity="xs"
-      className="w-full h-full relative overflow-hidden bg-[#12122b]/40 flex flex-col border border-neon-purple/20 hover:border-neon-purple/50 group transition duration-300 shadow-2xl select-text"
-    >
-      {/* SVG Thumbnail */}
-      <div className="relative video-cover-radius overflow-hidden border-b border-slate-900/60 select-none pointer-events-none">
-        {renderProjectThumbnail(project.imageUrl)}
-        <div
-          className="absolute top-0 left-0 w-full h-[2px] bg-neon-cyan opacity-0 group-hover:opacity-60 transition-opacity z-20"
-          style={{ animation: 'scanline 2s linear infinite', boxShadow: '0 0 8px #22D3EE' }}
-        />
-      </div>
+  // Slideshow control functions
 
-      {/* Card Contents */}
-      <div className="p-4 flex flex-col justify-between grow gap-2.5">
-        <div className="flex flex-col gap-1.5 text-left">
-          <div className="flex justify-between items-start gap-1">
-            <h3 className="font-heading font-black text-white text-[13px] uppercase tracking-wider group-hover:text-neon-cyan transition-colors line-clamp-1">
-              {project.title}
-            </h3>
-            <span className="font-mono text-[7px] uppercase font-bold text-neon-pink bg-neon-pink/10 border border-neon-pink/20 px-1.5 py-0.5 rounded whitespace-nowrap">
-              {project.category}
-            </span>
-          </div>
-          <p className="text-slate-400 text-[10px] font-sans leading-relaxed line-clamp-3">
-            {project.description}
-          </p>
+  const stopSlideshow = useCallback(() => {
+    if (slideshowIntervalRef.current) {
+      clearInterval(slideshowIntervalRef.current);
+      slideshowIntervalRef.current = null;
+    }
+    setSlideshowState(null);
+    isHoveredRef.current = false;
+  }, []);
+
+  // Simple hover handlers for auto-play slideshow
+  const handleCardMouseEnter = useCallback((projectId: string) => {
+    const project = items.find(p => p.id === projectId);
+    if (!project?.images || project.images.length <= 1) return;
+    
+    // Pause carousel auto-rotation
+    isHoveredRef.current = true;
+    
+    setSlideshowState({
+      activeProjectId: projectId,
+      currentImageIndex: 0,
+      isPlaying: true
+    });
+    
+    // Auto-advance to next image every 1.2 seconds
+    slideshowIntervalRef.current = setInterval(() => {
+      setSlideshowState(prev => {
+        if (!prev) return null;
+        const proj = items.find(p => p.id === prev.activeProjectId);
+        const maxIndex = (proj?.images?.length || 1) - 1;
+        const nextIndex = prev.currentImageIndex + 1;
+        
+        // Loop back to start
+        if (nextIndex > maxIndex) {
+          return { ...prev, currentImageIndex: 0 };
+        }
+        
+        return { ...prev, currentImageIndex: nextIndex };
+      });
+    }, 1200);
+  }, [items]);
+
+  const handleCardMouseLeave = useCallback(() => {
+    stopSlideshow();
+  }, [stopSlideshow]);
+
+  const renderCard = (project: Project, opacity: number) => {
+    const isInSlideshow = slideshowState?.activeProjectId === project.id;
+    const displayImageUrl = isInSlideshow && project.images
+      ? project.images[slideshowState.currentImageIndex]
+      : project.imageUrl;
+
+    return (
+      <LiquidGlassCard
+        draggable={false}
+        borderRadius="16px"
+        blurIntensity="xl"
+        glowIntensity="xs"
+        shadowIntensity="xs"
+        className="w-full h-full relative overflow-hidden bg-[#12122b]/40 flex flex-col border border-neon-purple/20 hover:border-neon-purple/50 group transition duration-300 shadow-2xl select-text"
+        onMouseEnter={() => handleCardMouseEnter(project.id)}
+        onMouseLeave={handleCardMouseLeave}
+      >
+        {/* SVG Thumbnail */}
+        <div className="relative video-cover-radius overflow-hidden border-b border-slate-900/60 select-none pointer-events-none">
+          {renderProjectThumbnail(displayImageUrl)}
+          <div
+            className="absolute top-0 left-0 w-full h-[2px] bg-neon-cyan opacity-0 group-hover:opacity-60 transition-opacity z-20"
+            style={{ animation: 'scanline 2s linear infinite', boxShadow: '0 0 8px #22D3EE' }}
+          />
+
+          {/* Slideshow Indicators (Dots) */}
+          {isInSlideshow && project.images && project.images.length > 1 && (
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-30 pointer-events-none">
+              {project.images.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-full transition-all duration-300 ${
+                    idx === slideshowState.currentImageIndex
+                      ? 'bg-neon-cyan w-4 h-1.5 shadow-[0_0_8px_#22D3EE]'
+                      : 'bg-white/30 w-1.5 h-1.5'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col gap-2.5">
-          {/* Technology Tags */}
-          <div className="flex gap-1 flex-wrap">
-            {project.tech.slice(0, 4).map(t => (
-              <span key={t} className="text-[7.5px] font-mono text-slate-300 bg-slate-900/60 border border-slate-800 px-1.5 py-0.5 rounded">
-                {t}
+        {/* Card Contents */}
+        <div className="p-4 flex flex-col justify-between grow gap-2.5">
+          <div className="flex flex-col gap-1.5 text-left">
+            <div className="flex justify-between items-start gap-1">
+              <h3 className="font-heading font-black text-white text-[13px] uppercase tracking-wider group-hover:text-neon-cyan transition-colors line-clamp-1">
+                {project.title}
+              </h3>
+              <span className="font-mono text-[7px] uppercase font-bold text-neon-pink bg-neon-pink/10 border border-neon-pink/20 px-1.5 py-0.5 rounded whitespace-nowrap">
+                {project.category}
               </span>
-            ))}
-            {project.tech.length > 4 && (
-              <span className="text-[7.5px] font-mono text-slate-500 bg-slate-900/40 border border-slate-800/60 px-1.5 py-0.5 rounded">
-                +{project.tech.length - 4}
-              </span>
-            )}
+            </div>
+            <p className="text-slate-400 text-[10px] font-sans leading-relaxed line-clamp-3">
+              {project.description}
+            </p>
           </div>
 
-          {/* GitHub Stats or Status Badge */}
-          {project.stats ? (
-            <div className="flex gap-3 text-[8.5px] font-mono text-slate-400 border-t border-slate-900/40 pt-2 select-none">
-              <span className="flex items-center gap-1">
-                <Star className="w-3 h-3 text-amber-400" /> {project.stats.stars} Stars
-              </span>
-              <span className="flex items-center gap-1">
-                <GitFork className="w-3 h-3 text-neon-pink" /> {project.stats.forks} Forks
-              </span>
+          <div className="flex flex-col gap-2.5">
+            {/* Technology Tags */}
+            <div className="flex gap-1 flex-wrap">
+              {project.tech.slice(0, 4).map(t => (
+                <span key={t} className="text-[7.5px] font-mono text-slate-300 bg-slate-900/60 border border-slate-800 px-1.5 py-0.5 rounded">
+                  {t}
+                </span>
+              ))}
+              {project.tech.length > 4 && (
+                <span className="text-[7.5px] font-mono text-slate-500 bg-slate-900/40 border border-slate-800/60 px-1.5 py-0.5 rounded">
+                  +{project.tech.length - 4}
+                </span>
+              )}
             </div>
-          ) : project.statusBadge ? (
-            <div className="border-t border-slate-900/40 pt-2 select-none">
-              <span className="text-[8.5px] font-mono text-neon-cyan bg-neon-cyan/10 border border-neon-cyan/20 px-2 py-0.5 rounded">
-                {project.statusBadge}
-              </span>
-            </div>
-          ) : null}
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 border-t border-slate-900/40 pt-2">
-            <a
-              href={project.githubUrl === '#' || !project.githubUrl ? '/private-repo' : project.githubUrl}
-              target={project.githubUrl === '#' || !project.githubUrl ? undefined : '_blank'}
-              rel={project.githubUrl === '#' || !project.githubUrl ? undefined : 'noopener noreferrer'}
-              className="flex-1 flex items-center justify-center gap-1 font-mono text-[9px] uppercase font-bold py-1.5 rounded border border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-950/80 text-slate-300 hover:text-white transition cursor-pointer"
-              style={{ pointerEvents: opacity < 0.8 ? 'none' : 'auto' }}
-            >
-              <Github className="w-3 h-3" /> Source
-            </a>
-            <a
-              href={project.liveUrl === '#' || !project.liveUrl ? '/not-deployed' : project.liveUrl}
-              target={project.liveUrl === '#' || !project.liveUrl ? undefined : '_blank'}
-              rel={project.liveUrl === '#' || !project.liveUrl ? undefined : 'noopener noreferrer'}
-              className="flex-1 flex items-center justify-center gap-1 font-mono text-[9px] uppercase font-bold py-1.5 rounded bg-linear-to-r from-neon-purple to-neon-pink text-white transition cursor-pointer"
-              style={{ pointerEvents: opacity < 0.8 ? 'none' : 'auto' }}
-            >
-              <ExternalLink className="w-3 h-3" /> Live
-            </a>
+            {/* GitHub Stats or Status Badge */}
+            {project.stats ? (
+              <div className="flex gap-3 text-[8.5px] font-mono text-slate-400 border-t border-slate-900/40 pt-2 select-none">
+                <span className="flex items-center gap-1">
+                  <Star className="w-3 h-3 text-amber-400" /> {project.stats.stars} Stars
+                </span>
+                <span className="flex items-center gap-1">
+                  <GitFork className="w-3 h-3 text-neon-pink" /> {project.stats.forks} Forks
+                </span>
+              </div>
+            ) : project.statusBadge ? (
+              <div className="border-t border-slate-900/40 pt-2 select-none">
+                <span className="text-[8.5px] font-mono text-neon-cyan bg-neon-cyan/10 border border-neon-cyan/20 px-2 py-0.5 rounded">
+                  {project.statusBadge}
+                </span>
+              </div>
+            ) : null}
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 border-t border-slate-900/40 pt-2">
+              <a
+                href={project.githubUrl === '#' || !project.githubUrl ? '/private-repo' : project.githubUrl}
+                target={project.githubUrl === '#' || !project.githubUrl ? undefined : '_blank'}
+                rel={project.githubUrl === '#' || !project.githubUrl ? undefined : 'noopener noreferrer'}
+                className="flex-1 flex items-center justify-center gap-1 font-mono text-[9px] uppercase font-bold py-1.5 rounded border border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-950/80 text-slate-300 hover:text-white transition cursor-pointer"
+                style={{ pointerEvents: opacity < 0.8 ? 'none' : 'auto' }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerMove={(e) => e.stopPropagation()}
+              >
+                <Github className="w-3 h-3" /> Source
+              </a>
+              <a
+                href={project.liveUrl === '#' || !project.liveUrl ? '/not-deployed' : project.liveUrl}
+                target={project.liveUrl === '#' || !project.liveUrl ? undefined : '_blank'}
+                rel={project.liveUrl === '#' || !project.liveUrl ? undefined : 'noopener noreferrer'}
+                className="flex-1 flex items-center justify-center gap-1 font-mono text-[9px] uppercase font-bold py-1.5 rounded bg-linear-to-r from-neon-purple to-neon-pink text-white transition cursor-pointer"
+                style={{ pointerEvents: opacity < 0.8 ? 'none' : 'auto' }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerMove={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="w-3 h-3" /> Live
+              </a>
+            </div>
           </div>
         </div>
-      </div>
-    </LiquidGlassCard>
-  );
+      </LiquidGlassCard>
+    );
+  };
 
   return (
     <div className="w-full flex flex-col items-center gap-6">

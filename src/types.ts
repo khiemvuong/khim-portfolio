@@ -7,6 +7,7 @@ export interface Project {
   githubUrl: string;
   liveUrl: string;
   imageUrl: string;
+  images?: string[]; // Optional: Multiple screenshots for slideshow on long-press
   stats?: {
     stars: number;
     forks: number;

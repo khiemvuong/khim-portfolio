@@ -24,6 +24,14 @@ export const PROJECTS_DATA: Project[] = [
     githubUrl: 'https://github.com/khiemvuong/e-commerce-saas',
     liveUrl: '#',
     imageUrl: '/project-image/e-commerce.png',
+    images: [
+      '/project-image/e-commerce.png',
+      '/project-image/e-commerce1.png',
+      '/project-image/e-commerce2.png',
+      '/project-image/e-commerce3.png',
+      '/project-image/e-commerce4.png',
+      '/project-image/e-commerce5.png'
+    ],
     statusBadge: 'Thesis Project · UIT 2025'
   },
   {
@@ -35,6 +43,11 @@ export const PROJECTS_DATA: Project[] = [
     githubUrl: 'https://github.com/khiemvuong/English_Vocab',
     liveUrl: 'https://english-vocab-rho.vercel.app/',
     imageUrl: '/project-image/english-vocab.png',
+    images: [
+      '/project-image/english-vocab.png',
+      '/project-image/english-vocab1.png',
+      '/project-image/english-vocab2.png'
+    ],
     statusBadge: 'Self-contained App'
   },
   {
@@ -46,6 +59,10 @@ export const PROJECTS_DATA: Project[] = [
     githubUrl: '#',
     liveUrl: 'https://layerz.vn/story',
     imageUrl: '/project-image/layerZ.png',
+    images: [
+      '/project-image/layerZ.png',
+      '/project-image/layerZ1.png'
+    ],
     statusBadge: 'Production Design'
   },
   {
@@ -57,7 +74,34 @@ export const PROJECTS_DATA: Project[] = [
     githubUrl: '#',
     liveUrl: 'https://ohal.com.vn/',
     imageUrl: '/project-image/ohal.jpg',
+    images: [
+      '/project-image/ohal.jpg',
+      '/project-image/ohal1.jpg',
+      '/project-image/ohal2.jpg'
+    ],
     statusBadge: 'Frontend Lead'
+  },
+  {
+    id: '5',
+    title: 'Real-Time Multiplayer Board Game Suite',
+    description: 'High-performance real-time multiplayer platform featuring Avalon, Deception, and Werewolf. Built with server-authoritative architecture, Socket.io orchestration, WebRTC voice integration, and responsive 360° circular player layouts. Sub-100ms state synchronization with Redis caching.',
+    category: 'Full Stack',
+    tech: ['Next.js', 'Node.js', 'Socket.io', 'Express', 'TypeScript', 'WebRTC', 'Redis', 'Docker'],
+    githubUrl: 'https://github.com/khiemvuong/XizachOnline',
+    liveUrl: 'https://xizach-online.vercel.app/',
+    imageUrl: '/project-image/boardgame.png',
+    images: [
+      '/project-image/boardgame.png',
+      '/project-image/boardgame1.png',
+      '/project-image/boardgame2.png',
+      '/project-image/boardgame3.png',
+      '/project-image/boardgame4.png',
+      '/project-image/boardgame5.png',
+      '/project-image/boardgame6.png',
+      '/project-image/boardgame7.png',
+      '/project-image/boardgame8.png'
+    ],
+    statusBadge: 'Game Engine Architecture'
   }
 ];
 
