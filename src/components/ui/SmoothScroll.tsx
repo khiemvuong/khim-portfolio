@@ -1,30 +1,46 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import Lenis from 'lenis';
 
 export default function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Initialize Lenis smooth scroll
-    const lenis = new Lenis({
-      lerp: 0.77, // Use linear interpolation physics for buttery smooth deceleration
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
-      smoothWheel: true,
-      wheelMultiplier: 0.9, // Slightly scale down wheel step size for a more controlled, elegant feel
-    });
+    const shouldUseNativeScroll =
+      window.matchMedia('(max-width: 767px)').matches ||
+      window.matchMedia('(pointer: coarse)').matches ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    let frameId: number;
-    const raf = (time: number) => {
-      lenis.raf(time);
+    if (shouldUseNativeScroll) return;
+
+    let lenis: { raf: (time: number) => void; destroy: () => void } | null = null;
+    let frameId: number | null = null;
+    let cancelled = false;
+
+    const startSmoothScroll = async () => {
+      const { default: Lenis } = await import('lenis');
+      if (cancelled) return;
+
+      lenis = new Lenis({
+        lerp: 0.12,
+        orientation: 'vertical',
+        gestureOrientation: 'vertical',
+        smoothWheel: true,
+        wheelMultiplier: 0.95,
+      });
+
+      const raf = (time: number) => {
+        lenis?.raf(time);
+        frameId = requestAnimationFrame(raf);
+      };
+
       frameId = requestAnimationFrame(raf);
     };
 
-    frameId = requestAnimationFrame(raf);
+    void startSmoothScroll();
 
     return () => {
-      lenis.destroy();
-      cancelAnimationFrame(frameId);
+      cancelled = true;
+      lenis?.destroy();
+      if (frameId) cancelAnimationFrame(frameId);
     };
   }, []);
 

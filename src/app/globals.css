@@ -88,6 +88,10 @@
   box-shadow: 0 10px 30px -10px rgba(168, 85, 247, 0.2);
 }
 
+.liquid-glass-bend {
+  filter: url("#glass-blur");
+}
+
 /* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 8px;
@@ -129,4 +133,25 @@
 @keyframes carousel-spin {
   from { transform: rotateY(0deg); }
   to { transform: rotateY(360deg); }
+}
+
+@media (max-width: 767px), (prefers-reduced-motion: reduce) {
+  .liquid-glass-bend {
+    filter: none;
+  }
+
+  .scanline-overlay::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }

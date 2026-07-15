@@ -13,6 +13,31 @@ const Github = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+function useLowPowerCarousel() {
+  const [isLowPower, setIsLowPower] = React.useState(true);
+
+  useEffect(() => {
+    const queries = [
+      window.matchMedia('(max-width: 767px)'),
+      window.matchMedia('(pointer: coarse)'),
+      window.matchMedia('(prefers-reduced-motion: reduce)'),
+    ];
+
+    const updateMode = () => {
+      setIsLowPower(queries.some((query) => query.matches));
+    };
+
+    updateMode();
+    queries.forEach((query) => query.addEventListener('change', updateMode));
+
+    return () => {
+      queries.forEach((query) => query.removeEventListener('change', updateMode));
+    };
+  }, []);
+
+  return isLowPower;
+}
+
 export default function ProjectCarousel() {
 
   
@@ -23,6 +48,8 @@ export default function ProjectCarousel() {
   
   const containerRef = useRef<HTMLDivElement>(null);
   const spinnerRef = useRef<HTMLDivElement>(null);
+  const isLowPower = useLowPowerCarousel();
+  const [isInView, setIsInView] = React.useState(false);
 
   // Slideshow state and refs
   const [slideshowState, setSlideshowState] = React.useState<{
@@ -36,12 +63,37 @@ export default function ProjectCarousel() {
   const radius = 380;
   const anglePerItem = 360 / items.length;
 
-  // Direct DOM rotation loop using requestAnimationFrame (60fps, 0 React re-renders)
   useEffect(() => {
+    if (isLowPower) return;
+
+    const element = containerRef.current;
+    if (!element || !('IntersectionObserver' in window)) {
+      setIsInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { rootMargin: '220px', threshold: 0.1 }
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isLowPower]);
+
+  // Direct DOM rotation loop using requestAnimationFrame with no React re-renders.
+  useEffect(() => {
+    if (isLowPower || !isInView) return;
+
     let frameId: number;
-    const rotate = () => {
-      if (!isDraggingRef.current && !isHoveredRef.current) {
-        rotationRef.current += 0.05; // 0.05 degrees per frame
+    let previousTime = performance.now();
+
+    const rotate = (time: number) => {
+      const delta = Math.min(time - previousTime, 40);
+      previousTime = time;
+
+      if (!document.hidden && !isDraggingRef.current && !isHoveredRef.current) {
+        rotationRef.current += delta * 0.0025;
         if (spinnerRef.current) {
           spinnerRef.current.style.transform = `rotateY(${rotationRef.current}deg)`;
         }
@@ -50,7 +102,7 @@ export default function ProjectCarousel() {
     };
     frameId = requestAnimationFrame(rotate);
     return () => cancelAnimationFrame(frameId);
-  }, []);
+  }, [isInView, isLowPower]);
 
   // Cleanup slideshow timers on unmount
   useEffect(() => {
@@ -95,6 +147,7 @@ export default function ProjectCarousel() {
   const handleCardMouseEnter = useCallback((projectId: string) => {
     const project = items.find(p => p.id === projectId);
     if (!project?.images || project.images.length <= 1) return;
+    if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current);
     
     // Pause carousel auto-rotation
     isHoveredRef.current = true;
@@ -146,7 +199,7 @@ export default function ProjectCarousel() {
       >
         {/* SVG Thumbnail */}
         <div className="relative video-cover-radius overflow-hidden border-b border-slate-900/60 select-none pointer-events-none">
-          {renderProjectThumbnail(displayImageUrl)}
+          {renderProjectThumbnail(displayImageUrl, project.title)}
           <div
             className="absolute top-0 left-0 w-full h-[2px] bg-neon-cyan opacity-0 group-hover:opacity-60 transition-opacity z-20"
             style={{ animation: 'scanline 2s linear infinite', boxShadow: '0 0 8px #22D3EE' }}
@@ -248,6 +301,69 @@ export default function ProjectCarousel() {
       </LiquidGlassCard>
     );
   };
+
+  const renderFlatCard = (project: Project) => (
+    <article
+      key={project.id}
+      className="w-[82vw] max-w-[340px] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/10 bg-[#101025]/80 shadow-xl"
+    >
+      <div className="border-b border-slate-900/60">
+        {renderProjectThumbnail(project.imageUrl, project.title)}
+      </div>
+
+      <div className="flex flex-col gap-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="font-heading text-sm font-black uppercase tracking-wider text-white">
+            {project.title}
+          </h3>
+          <span className="shrink-0 rounded border border-neon-pink/20 bg-neon-pink/10 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-neon-pink">
+            {project.category}
+          </span>
+        </div>
+
+        <p className="text-xs leading-relaxed text-slate-400">
+          {project.description}
+        </p>
+
+        <div className="flex flex-wrap gap-1.5">
+          {project.tech.slice(0, 5).map((tech) => (
+            <span key={tech} className="rounded border border-slate-800 bg-slate-950/60 px-2 py-0.5 font-mono text-[8px] text-slate-300">
+              {tech}
+            </span>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-slate-900/60 pt-3">
+          <a
+            href={project.githubUrl === '#' || !project.githubUrl ? '/private-repo' : project.githubUrl}
+            target={project.githubUrl === '#' || !project.githubUrl ? undefined : '_blank'}
+            rel={project.githubUrl === '#' || !project.githubUrl ? undefined : 'noopener noreferrer'}
+            className="flex flex-1 items-center justify-center gap-1 rounded border border-slate-800 bg-slate-950/40 py-1.5 font-mono text-[9px] font-bold uppercase text-slate-300"
+          >
+            <Github className="h-3 w-3" /> Source
+          </a>
+          <a
+            href={project.liveUrl === '#' || !project.liveUrl ? '/not-deployed' : project.liveUrl}
+            target={project.liveUrl === '#' || !project.liveUrl ? undefined : '_blank'}
+            rel={project.liveUrl === '#' || !project.liveUrl ? undefined : 'noopener noreferrer'}
+            className="flex flex-1 items-center justify-center gap-1 rounded bg-linear-to-r from-neon-purple to-neon-pink py-1.5 font-mono text-[9px] font-bold uppercase text-white"
+          >
+            <ExternalLink className="h-3 w-3" /> Live
+          </a>
+        </div>
+      </div>
+    </article>
+  );
+
+  if (isLowPower) {
+    return (
+      <div className="w-full">
+        <div className="-mx-6 flex snap-x gap-4 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0">
+          {items.map(renderFlatCard)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex flex-col items-center gap-6">

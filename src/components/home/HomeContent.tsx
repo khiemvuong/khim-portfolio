@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { motion, AnimatePresence, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react';
 import dynamic from 'next/dynamic';
 import { 
   Cpu, 
@@ -23,74 +23,156 @@ import {
 
 // Components
 import MagneticElement from '@/components/MagneticElement';
-import HolographicAvatar from '@/components/HolographicAvatar';
 import Typewriter from '@/components/Typewriter';
-import OrbitalGrid from '@/components/OrbitalGrid';
-import ProjectCarousel from '@/components/ProjectCarousel';
-import TerminalContact from '@/components/TerminalContact';
+import HeroSplineScene from '@/components/home/HeroSplineScene';
 
-// Dynamically import Spline to prevent SSR errors
-const Spline = dynamic(
-  () => import("@splinetool/react-spline"),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="w-[300px] h-[300px] flex flex-col items-center justify-center text-neon-cyan font-mono text-xs tracking-widest uppercase animate-pulse">
-        <Cpu className="w-8 h-8 mr-2 animate-spin text-neon-purple mb-3" />
-        LOADING 3D INTERFACE...
-      </div>
-    )
-  }
-);
+const HolographicAvatar = dynamic(() => import('@/components/HolographicAvatar'), {
+  ssr: false,
+  loading: () => <DeferredCard label="Loading profile" className="h-[500px] max-w-[320px]" />,
+});
+
+const OrbitalGrid = dynamic(() => import('@/components/OrbitalGrid'), {
+  ssr: false,
+  loading: () => <DeferredCard label="Preparing toolkit" className="h-[380px] sm:h-[450px]" />,
+});
+
+const ProjectCarousel = dynamic(() => import('@/components/ProjectCarousel'), {
+  ssr: false,
+  loading: () => <DeferredCard label="Loading projects" className="h-[460px]" />,
+});
+
+const TerminalContact = dynamic(() => import('@/components/TerminalContact'), {
+  ssr: false,
+  loading: () => <DeferredCard label="Opening contact" className="h-[360px]" />,
+});
 
 const SECTIONS = ['hero', 'about', 'tech', 'projects', 'contact'];
+const NAV_ITEMS = [
+  { id: 'hero', label: 'HOME', icon: Home },
+  { id: 'about', label: 'ABOUT', icon: User },
+  { id: 'tech', label: 'SKILLS', icon: Cpu },
+  { id: 'projects', label: 'PROJECTS', icon: FolderGit2 },
+  { id: 'contact', label: 'CONTACT', icon: Mail }
+];
+
+function DeferredCard({ label, className = '' }: { label: string; className?: string }) {
+  return (
+    <div className={`w-full rounded-2xl border border-white/10 bg-white/3 flex items-center justify-center ${className}`}>
+      <div className="flex items-center gap-3 font-mono text-[10px] font-bold uppercase tracking-widest text-neon-cyan/80">
+        <Cpu className="h-4 w-4 animate-pulse text-neon-purple" />
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function DeferredMount({
+  children,
+  fallback,
+  rootMargin = '520px',
+}: {
+  children: ReactNode;
+  fallback: ReactNode;
+  rootMargin?: string;
+}) {
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    if (shouldRender) return;
+
+    const element = wrapperRef.current;
+    if (!element || !('IntersectionObserver' in window)) {
+      setShouldRender(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [rootMargin, shouldRender]);
+
+  return (
+    <div ref={wrapperRef} className="h-full w-full">
+      {shouldRender ? children : fallback}
+    </div>
+  );
+}
 
 export default function HomeContent() {
   const [activeSection, setActiveSection] = useState('hero');
   const [glitchText, setGlitchText] = useState('KHIEM VUONG');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const glitchIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   // Scroll Progress
   const { scrollY, scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 150, damping: 30 });
-  const yParallax = useSpring(scrollY, { stiffness: 100, damping: 30 });
-  const [offsetY, setOffsetY] = useState(0);
-
-  useEffect(() => {
-    return yParallax.on("change", (latest) => {
-      setOffsetY(latest);
-    });
-  }, [yParallax]);
+  const rawHeroY = useTransform(scrollY, [0, 900], [0, 36]);
+  const heroY = useSpring(rawHeroY, { stiffness: 100, damping: 30 });
+  const heroColumnStyle = prefersReducedMotion ? undefined : { y: heroY };
 
   // Section observer for header and tab highlights
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollPos = window.scrollY + 250;
+    const sectionElements = SECTIONS
+      .map((section) => document.getElementById(section))
+      .filter((element): element is HTMLElement => Boolean(element));
 
-      for (const section of SECTIONS) {
-        const el = document.getElementById(section);
-        if (el) {
-          const top = el.offsetTop;
-          const height = el.offsetHeight;
-          if (scrollPos >= top && scrollPos < top + height) {
-            setActiveSection(section);
-            break;
-          }
-        }
+    if (!sectionElements.length || !('IntersectionObserver' in window)) return;
+
+    const sectionRatios = new Map<string, number>();
+    sectionElements.forEach((element) => {
+      sectionRatios.set(element.id, element.id === 'hero' ? 1 : 0);
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          sectionRatios.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
+        });
+
+        const nextSection = [...sectionRatios.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .find(([, ratio]) => ratio > 0)?.[0];
+
+        if (nextSection) setActiveSection(nextSection);
+      },
+      {
+        rootMargin: '-32% 0px -48% 0px',
+        threshold: [0, 0.2, 0.45, 0.7],
       }
-    };
+    );
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    sectionElements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (glitchIntervalRef.current) clearInterval(glitchIntervalRef.current);
+    };
   }, []);
 
   // Cybernetic Glitch heading animation handler
   const handleHeadingHover = () => {
     const original = 'KHIEM VUONG';
-    const chars = 'ABCDEFGHIKLMNOPQRSTUVWXYZ0123456789@#$%&*§+_';
+    const chars = 'ABCDEFGHIKLMNOPQRSTUVWXYZ0123456789@#$%&*+_';
     let iterations = 0;
+
+    if (prefersReducedMotion) return;
+    if (glitchIntervalRef.current) clearInterval(glitchIntervalRef.current);
     
-    const interval = setInterval(() => {
+    glitchIntervalRef.current = setInterval(() => {
       setGlitchText(() => 
         original.split('')
           .map((char, index) => {
@@ -103,7 +185,8 @@ export default function HomeContent() {
       
       iterations += 1/3;
       if (iterations >= original.length) {
-        clearInterval(interval);
+        if (glitchIntervalRef.current) clearInterval(glitchIntervalRef.current);
+        glitchIntervalRef.current = null;
         setGlitchText(original);
       }
     }, 25);
@@ -119,8 +202,8 @@ export default function HomeContent() {
   return (
     <div className="relative min-h-screen bg-transparent text-[#e2e8f0] font-sans antialiased overflow-x-hidden select-text">
       {/* Scanline atmospheric overlays */}
-      <div className="scanline-overlay absolute inset-0 opacity-15 pointer-events-none z-20" />
-      <div className="fixed inset-0 border border-slate-900/40 pointer-events-none z-40 m-3 md:m-6" />
+      <div className="scanline-overlay absolute inset-0 hidden opacity-15 pointer-events-none z-20 md:block" />
+      <div className="fixed inset-0 hidden border border-slate-900/40 pointer-events-none z-40 m-6 md:block" />
 
       {/* Top progress bar */}
       <motion.div 
@@ -141,23 +224,15 @@ export default function HomeContent() {
         </div>
         
         <div className="flex flex-col text-left">
-          <span 
+          <div
             onMouseEnter={() => {
               handleHeadingHover();
             }}
             className="font-heading font-black text-xs tracking-wider text-white uppercase cursor-pointer flex items-center group-hover/brand:text-neon-cyan transition-colors"
           >
             {glitchText}<span className="text-neon-pink group-hover/brand:text-neon-cyan transition-colors">.</span>
-          </span>
-          <span className="font-mono text-[7px] text-slate-400 tracking-widest uppercase">
-            ENG_ARCH.SYS
-          </span>
-        </div>
+          </div>
 
-        {/* Status indicator tag */}
-        <div className="flex items-center gap-1.5 bg-neon-cyan/5 border border-neon-cyan/20 px-2 py-0.5 rounded text-[8px] font-mono text-neon-cyan font-bold tracking-widest uppercase sm:flex">
-          <span className="w-1 h-1 rounded-full bg-neon-cyan animate-pulse shadow-neon-cyan" />
-          MERN_CORE
         </div>
       </div>
 
@@ -172,13 +247,7 @@ export default function HomeContent() {
         
         {/* Navigation Items */}
         <div className="flex flex-col gap-5 relative z-10">
-          {[
-            { id: 'hero', label: 'HOME', icon: Home },
-            { id: 'about', label: 'ABOUT', icon: User },
-            { id: 'tech', label: 'SKILLS', icon: Cpu },
-            { id: 'projects', label: 'PROJECTS', icon: FolderGit2 },
-            { id: 'contact', label: 'CONTACT', icon: Mail }
-          ].map(navItem => {
+          {NAV_ITEMS.map(navItem => {
             const NavIcon = navItem.icon;
             const isActive = activeSection === navItem.id;
             return (
@@ -232,7 +301,7 @@ export default function HomeContent() {
             </a>
           </div>
 
-          {/* Let's Connect CTA */}
+          {/* Contact CTA */}
           <div className="relative flex items-center justify-center group/item">
             <div className="absolute right-12 whitespace-nowrap bg-[#070714]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-md text-[9px] font-mono uppercase tracking-widest font-black text-white pointer-events-none opacity-0 translate-x-2 group-hover/item:opacity-100 group-hover/item:translate-x-0 transition-all duration-300 shadow-xl">
               Connect
@@ -240,10 +309,12 @@ export default function HomeContent() {
             <button
               onClick={() => scrollToSection('contact')}
               className="w-9 h-9 rounded-full bg-neon-purple/15 border border-neon-purple/30 hover:border-neon-purple text-neon-purple flex items-center justify-center transition cursor-pointer hover:scale-105 shadow-[0_0_8px_rgba(168,85,247,0.2)]"
+              aria-label="Scroll to contact"
             >
               <Mail className="w-3.5 h-3.5" />
             </button>
           </div>
+
         </div>
       </nav>
 
@@ -263,13 +334,7 @@ export default function HomeContent() {
 
               {/* Navigation Items */}
               <div className="flex flex-col gap-4">
-                {[
-                  { id: 'hero', label: 'HOME', icon: Home },
-                  { id: 'about', label: 'ABOUT', icon: User },
-                  { id: 'tech', label: 'SKILLS', icon: Cpu },
-                  { id: 'projects', label: 'PROJECTS', icon: FolderGit2 },
-                  { id: 'contact', label: 'CONTACT', icon: Mail }
-                ].map(navItem => {
+                {NAV_ITEMS.map(navItem => {
                   const NavIcon = navItem.icon;
                   const isActive = activeSection === navItem.id;
                   return (
@@ -335,14 +400,7 @@ export default function HomeContent() {
         </button>
       </div>
 
-      {/* Absolute container holding the interactive 3D robot (outside section to prevent overflow clipping, cropped bottom to hide watermark) */}
-      <div className="absolute top-0 left-0 right-0 h-screen z-0 flex justify-center items-center pointer-events-none select-none overflow-visible">
-        <div className="w-[1400px] h-[1340px] shrink-0 flex items-center justify-center translate-y-[-30px] lg:translate-y-[-100px] scale-[1.12] relative overflow-hidden">
-          <div className="w-full h-[1400px] absolute top-0 left-0">
-            <Spline scene="https://prod.spline.design/Hoc-5P8xfjMh7imC/scene.splinecode" />
-          </div>
-        </div>
-      </div>
+      <HeroSplineScene />
 
       {/* SECTION 1: HERO */}
       <section 
@@ -356,8 +414,8 @@ export default function HomeContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-0 items-start w-full relative">
             
             {/* Left Column */}
-            <div 
-              style={{ transform: `translateY(${offsetY * 0.08}px)` }}
+            <motion.div
+              style={heroColumnStyle}
               className="flex flex-col gap-5 text-left md:max-w-[460px]"
             >
               <div className="inline-flex items-center gap-2 bg-white/3 border border-white/5 backdrop-blur-xl px-4 py-2 rounded-full w-max shadow-lg">
@@ -375,16 +433,16 @@ export default function HomeContent() {
               <h2 className="font-mono text-base md:text-lg font-bold text-slate-400 mt-1 select-all h-8 flex items-center">
                 <span>ROOT@SERVER:~$&nbsp;</span>
                 <Typewriter 
-                  words={['Full-Stack Engineer · MERN', 'Microservices · AI', 'UI/UX Pro-Max Architect']} 
+                  words={['Full-Stack Engineer', 'MERN + Microservices', 'Product UI + Motion']}
                   typingSpeed={80}
                   deletingSpeed={30}
                 />
               </h2>
-            </div>
+            </motion.div>
 
             {/* Right Column */}
-            <div 
-              style={{ transform: `translateY(${offsetY * 0.08}px)` }}
+            <motion.div
+              style={heroColumnStyle}
               className="flex flex-col gap-5 md:text-right md:items-end md:max-w-[440px] md:ml-auto"
             >
               <div className="inline-flex items-center gap-2 bg-white/3 border border-white/5 backdrop-blur-xl px-4 py-2 rounded-full w-max shadow-lg">
@@ -397,7 +455,7 @@ export default function HomeContent() {
               <h1 className="font-heading font-black text-5xl sm:text-6xl lg:text-7.5xl text-transparent bg-clip-text bg-linear-to-r from-neon-purple via-neon-pink to-neon-cyan tracking-tighter leading-none select-none">
                 ELEVATING<br />WITH ART.
               </h1>
-            </div>
+            </motion.div>
 
           </div>
 
@@ -405,12 +463,12 @@ export default function HomeContent() {
           <div className="w-full flex flex-col items-center justify-center text-center mt-10 md:mt-16 max-w-3xl mx-auto z-20">
 
             <p className="font-sans text-[15px] sm:text-base text-white leading-[1.7] font-normal">
-              I&apos;m a full-stack engineer who builds production-grade systems and obsesses over every pixel. I architect scalable backends on Node.js/MongoDB and craft cinematic frontend experiences with React — from 60fps microinteractions to 3D web scenes. Currently completing my B.S. in Information Technology at UIT, with hands-on industry experience shipping Odoo ERP features at T4Tek.
+              Full-stack engineer focused on reliable MERN/Next.js products, clean APIs, fast interfaces, and polished motion. B.S. IT candidate at UIT with hands-on experience shipping Odoo ERP features at T4Tek.
             </p>
 
             {/* 2d: Tech stack strip */}
             <p className="font-mono text-sm font-bold text-neon-cyan/80 mt-4 tracking-wide">
-              React · Node.js · MongoDB · Express · TypeScript · Docker · Next.js · Tailwind CSS · Redis · Git
+              React · Next.js · TypeScript · Node.js · MongoDB · Redis · Docker · Tailwind CSS
             </p>
 
             {/* 2e: CTA buttons — added Download CV */}
@@ -454,28 +512,28 @@ export default function HomeContent() {
       {/* --- SECTION: KEY METRICS — Section 3 --- */}
       <section className="relative z-20 max-w-7xl mx-auto px-6 md:px-12 w-full pt-12 pb-24">
         <div className="flex flex-col gap-2 border-b border-white/5 pb-6 mb-10 text-center md:text-left">
-          <span className="font-mono text-[11px] text-neon-pink tracking-widest uppercase font-bold">KEY PERFORMANCE METRICS</span>
+          <span className="font-mono text-[11px] text-neon-pink tracking-widest uppercase font-bold">RECRUITER SIGNALS</span>
           <h2 className="font-heading font-black text-2xl md:text-3.5xl text-white uppercase tracking-wider">
-            THE NUMBERS THAT DEFINE ME
+            Proof I Can Ship And Communicate
           </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
-          {/* Card 1: 950+ TOEIC — 3a */}
+          {/* Card 1: 930 TOEIC — 3a */}
           <div className="group relative flex flex-col bg-white/3 border border-white/5 backdrop-blur-xl p-8 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] hover:bg-white/8 hover:border-white/15 hover:-translate-y-1.5 transition-all duration-300">
             <div className="absolute inset-0 rounded-2xl bg-linear-to-br from-neon-cyan/0 to-neon-cyan/5 group-hover:to-neon-cyan/10 transition-all duration-300 pointer-events-none" />
             <div className="p-3 rounded-xl bg-white/3 border border-white/5 w-max mb-6">
               <Globe className="w-6 h-6 text-neon-cyan" />
             </div>
             <h3 className="font-heading font-black text-4xl lg:text-5xl text-white mb-2 tracking-tight">
-              950+ TOEIC
+              930 TOEIC
             </h3>
             <span className="font-mono text-[11px] font-bold text-neon-cyan uppercase tracking-widest mb-4 block">
-              Global Communication Ready
+              English-Ready Engineer
             </span>
             <p className="font-sans text-[15px] text-white/70 leading-[1.7] mt-2">
-              No language barrier. Able to read advanced technical documentation, write engineering specs, and present solutions to international stakeholders in English.
+              Comfortable with English documentation, technical specs, and cross-team updates.
             </p>
           </div>
 
@@ -492,24 +550,24 @@ export default function HomeContent() {
               AI-Augmented Workflow
             </span>
             <p className="font-sans text-[15px] text-white/70 leading-[1.7] mt-2">
-              Reduced feature development cycle from ~3 days to 1 day by integrating AI-assisted scaffolding (Antigravity + Claude) into daily engineering workflow — from boilerplate generation to code review.
+              Use AI for scaffolding, review, and iteration while keeping engineering judgment in the loop.
             </p>
           </div>
 
-          {/* Card 3: UI/UX Pro-Max — 3c */}
+          {/* Card 3: Polished UI */}
           <div className="group relative flex flex-col bg-white/3 border border-white/5 backdrop-blur-xl p-8 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] hover:bg-white/8 hover:border-white/15 hover:-translate-y-1.5 transition-all duration-300">
             <div className="absolute inset-0 rounded-2xl bg-linear-to-br from-neon-purple/0 to-neon-purple/5 group-hover:to-neon-purple/10 transition-all duration-300 pointer-events-none" />
             <div className="p-3 rounded-xl bg-white/3 border border-white/5 w-max mb-6">
               <Palette className="w-6 h-6 text-neon-purple" />
             </div>
             <h3 className="font-heading font-black text-4xl lg:text-5xl text-white mb-2 tracking-tight">
-              UI/UX PRO-MAX
+              POLISHED UI
             </h3>
             <span className="font-mono text-[11px] font-bold text-neon-purple uppercase tracking-widest mb-4 block">
-              Pixel-Perfect Execution
+              Product-Focused Frontend
             </span>
             <p className="font-sans text-[15px] text-white/70 leading-[1.7] mt-2">
-              Proficient in design systems from Figma to code. Implements cinematic micro-interactions, Spline 3D animations, and glassmorphism UI — making interfaces feel alive, not static.
+              Build responsive interfaces with clear visual hierarchy, smooth motion, and production-minded details.
             </p>
           </div>
 
@@ -526,7 +584,7 @@ export default function HomeContent() {
               <Code className="w-3.5 h-3.5" /> 01. GET TO KNOW ME
             </span>
             <h2 className="font-heading font-black text-3xl md:text-4.5xl text-white uppercase tracking-wider leading-tight">
-              The AI-Augmented Engineer with a Designer&apos;s Soul
+              Full-Stack Engineer Who Ships Polished Products
             </h2>
           </div>
 
@@ -535,7 +593,9 @@ export default function HomeContent() {
             
             {/* Holographic Avatar Card */}
             <div className="lg:col-span-4 flex justify-center select-none">
-              <HolographicAvatar />
+              <DeferredMount fallback={<DeferredCard label="Loading profile" className="h-[500px] max-w-[320px]" />}>
+                <HolographicAvatar />
+              </DeferredMount>
             </div>
 
             {/* Biography details & Skill tags — Section 4 */}
@@ -543,28 +603,28 @@ export default function HomeContent() {
               {/* 4a: Main bio in English */}
               <div className="flex flex-col gap-6 font-sans text-[15px] sm:text-base text-white/70 leading-[1.7] max-w-3xl">
                 <p>
-                  I don&apos;t define myself as a coder who hides behind terminal commands. I&apos;m an <strong className="text-white font-bold">AI-Augmented Engineer</strong> — someone who harnesses artificial intelligence to amplify creativity and push performance to its ceiling.
+                  I combine backend discipline with frontend taste: APIs that hold up, interfaces that feel fast, and AI-assisted workflows that speed up delivery without skipping code quality.
                 </p>
                 {/* 4b: Three trait blocks in English */}
                 <div className="space-y-4">
                   <div className="border-l-2 border-neon-cyan pl-4">
-                    <span className="font-heading font-bold text-white block mb-1">UI/UX Pro-Max Thinking</span>
+                    <span className="font-heading font-bold text-white block mb-1">Frontend Craft</span>
                     <p className="text-[15px] text-white/70">
-                      Great UI isn&apos;t just beautiful UI. It&apos;s the smoothness of every micro-interaction, the physics of every scroll. Libraries like Framer Motion and Antigravity let me realize designs that feel cinematic and intentional.
+                      React/Next.js interfaces with responsive layouts, clear hierarchy, and motion used only where it improves the experience.
                     </p>
                   </div>
 
                   <div className="border-l-2 border-neon-pink pl-4">
-                    <span className="font-heading font-bold text-white block mb-1">Spline 3D Mastery</span>
+                    <span className="font-heading font-bold text-white block mb-1">Backend Thinking</span>
                     <p className="text-[15px] text-white/70">
-                      Integrating 3D motion into web spaces is what separates my products from the static. Every scene is crafted to create immersive, depth-driven visual experiences.
+                      Node.js, Express, MongoDB, Redis, and Docker foundations for APIs, data flows, and deployable product architecture.
                     </p>
                   </div>
 
                   <div className="border-l-2 border-neon-purple pl-4">
                     <span className="font-heading font-bold text-white block mb-1">Global-Ready Communication</span>
                     <p className="text-[15px] text-white/70">
-                      With 950+ TOEIC, I operate fluently in international environments — from reading deep technical documentation to pitching solutions to cross-border partners.
+                      TOEIC 930, comfortable with English documentation, specs, code review notes, and stakeholder updates.
                     </p>
                   </div>
                 </div>
@@ -577,7 +637,7 @@ export default function HomeContent() {
                   <div className="flex flex-col gap-2">
                     <span className="font-mono text-[11px] text-neon-cyan font-bold uppercase tracking-widest">Frontend</span>
                     <div className="flex flex-wrap gap-1.5">
-                      {['React.js (2 yrs)', 'Next.js', 'Tailwind CSS', 'Framer Motion', 'TypeScript', 'HTML/CSS'].map(s => (
+                      {['React.js', 'Next.js', 'Tailwind CSS', 'Framer Motion', 'TypeScript', 'HTML/CSS'].map(s => (
                         <span key={s} className="font-mono text-xs text-white/80 bg-white/5 border border-neon-cyan/20 px-2.5 py-1 rounded-lg">
                           {s}
                         </span>
@@ -600,7 +660,7 @@ export default function HomeContent() {
                 <div className="flex flex-col gap-2">
                   <span className="font-mono text-[11px] text-neon-purple font-bold uppercase tracking-widest">AI &amp; Tooling</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {['Cursor AI', 'Claude API', 'Spline 3D', 'Figma', 'Antigravity', 'Odoo 18', 'PostgreSQL'].map(s => (
+                    {['Codex AI', 'Claude API', 'Spline 3D', 'Figma', 'Antigravity', 'Odoo 18', 'PostgreSQL'].map(s => (
                       <span key={s} className="font-mono text-xs text-white/80 bg-white/5 border border-neon-purple/20 px-2.5 py-1 rounded-lg">
                         {s}
                       </span>
@@ -624,12 +684,14 @@ export default function HomeContent() {
               <Layers className="w-3.5 h-3.5" /> 02. MY TOOLKIT
             </span>
             <h2 className="font-heading font-black text-3xl md:text-4.5xl text-white uppercase tracking-wider">
-              Modern tools I use to build scalable products.
+              Tools I Use To Build Scalable Products.
             </h2>
           </div>
 
           <div className="w-full md:flex-1 md:min-h-0 flex items-center justify-center">
-            <OrbitalGrid />
+            <DeferredMount fallback={<DeferredCard label="Preparing toolkit" className="h-[380px] sm:h-[450px]" />}>
+              <OrbitalGrid />
+            </DeferredMount>
           </div>
         </div>
       </section>
@@ -644,13 +706,15 @@ export default function HomeContent() {
               <FolderGit2 className="w-3.5 h-3.5" /> 03. FEATURED WORK
             </span>
             <h2 className="font-heading font-black text-3xl md:text-4.5xl text-white uppercase tracking-wider">
-              Real-world projects built with passion.
+              Selected Work With Real Product Constraints.
             </h2>
           </div>
 
           {/* Interactive 3D Project Carousel */}
           <div className="md:flex-1 md:min-h-0 w-full flex items-center justify-center">
-            <ProjectCarousel />
+            <DeferredMount fallback={<DeferredCard label="Loading projects" className="h-[460px]" />}>
+              <ProjectCarousel />
+            </DeferredMount>
           </div>
         </div>
       </section>
@@ -665,13 +729,15 @@ export default function HomeContent() {
               <TermIcon className="w-3.5 h-3.5" /> 04. STAY IN TOUCH
             </span>
             <h2 className="font-heading font-black text-3xl md:text-4.5xl text-white uppercase tracking-wider">
-              Let&apos;s build something amazing together.
+              Let&apos;s Talk About The Next Product.
             </h2>
           </div>
 
           {/* Terminal Command Contact Prompt */}
           <div className="md:flex-1 md:min-h-0 w-full flex items-center justify-center">
-            <TerminalContact />
+            <DeferredMount fallback={<DeferredCard label="Opening contact" className="h-[360px]" />}>
+              <TerminalContact />
+            </DeferredMount>
           </div>
         </div>
       </section>

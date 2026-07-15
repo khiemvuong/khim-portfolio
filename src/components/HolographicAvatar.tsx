@@ -1,14 +1,23 @@
 "use client";
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 
 
 import { LiquidGlassCard } from './ui/liquid-weather-glass';
 
 export default function HolographicAvatar() {
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const pendingCoordsRef = useRef({ rx: 0, ry: 0, px: 50, py: 50 });
   const [coords, setCoords] = useState({ rx: 0, ry: 0, px: 50, py: 50 });
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
@@ -31,11 +40,19 @@ export default function HolographicAvatar() {
     const px = (x / width) * 100;
     const py = (y / height) * 100;
 
-    setCoords({ rx, ry, px, py });
+    pendingCoordsRef.current = { rx, ry, px, py };
+    if (frameRef.current) return;
+
+    frameRef.current = requestAnimationFrame(() => {
+      setCoords(pendingCoordsRef.current);
+      frameRef.current = null;
+    });
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
     setCoords({ rx: 0, ry: 0, px: 50, py: 50 });
   };
 
@@ -81,11 +98,12 @@ export default function HolographicAvatar() {
           <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_55%,rgba(13,13,26,0.95)_100%)] z-10" />
 
           {/* Actual Avatar Image */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img 
-            src="/project-image/avt.png" 
-            alt="Khiêm Vương Avatar" 
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 relative z-0" 
+          <Image
+            src="/project-image/avt.png"
+            alt="Khiem Vuong Avatar"
+            fill
+            sizes="(max-width: 768px) 280px, 320px"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 relative z-0"
           />
 
           {/* Animated HUD Overlay Rings on top of image */}
@@ -119,7 +137,7 @@ export default function HolographicAvatar() {
           
           <p className="text-slate-400 font-mono text-xs mt-1">
             MERN_ARCHITECT.EXE
-          </p>1
+          </p>
         </div>
       </LiquidGlassCard>
     </div>

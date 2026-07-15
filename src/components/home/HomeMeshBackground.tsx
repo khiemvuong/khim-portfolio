@@ -10,7 +10,6 @@ export default function HomeMeshBackground() {
           backgroundImage: 'url("/project-image/bg.jpg")',
           backgroundSize: 'cover',
           backgroundPosition: 'center center',
-          backgroundAttachment: 'fixed',
           filter: 'brightness(0.48) contrast(1.1) saturate(0.9)', // Adjusted brightness for perfect balance
         }}
       />

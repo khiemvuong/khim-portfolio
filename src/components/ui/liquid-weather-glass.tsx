@@ -140,10 +140,9 @@ export const LiquidGlassCard = React.forwardRef<HTMLDivElement, LiquidGlassCardP
       >
         {/* Bend Layer (Backdrop blur with distortion) */}
         <div
-          className={`absolute inset-0 ${blurClasses[blurIntensity]} z-0`}
+          className={`liquid-glass-bend absolute inset-0 ${blurClasses[blurIntensity]} z-0`}
           style={{
             borderRadius,
-            filter: 'url(#glass-blur)',
           }}
         />
 

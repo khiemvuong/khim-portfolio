@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ExternalLink, Star, GitFork, Sparkles } from 'lucide-react';
+import Image from 'next/image';
 import { Project } from '../types';
 import { LiquidGlassCard } from './ui/liquid-weather-glass';
 
@@ -18,7 +19,7 @@ export const PROJECTS_DATA: Project[] = [
   {
     id: '1',
     title: 'AI Hybrid Chatbot E-Commerce System',
-    description: 'Production-grade hybrid full-stack e-commerce marketplace powered by an AI Chatbot with a custom Hybrid Scoring Engine (lexical + semantic). Built on Node.js/MongoDB with Redis caching for sub-100ms response times.',
+    description: 'Full-stack marketplace with AI chatbot, hybrid lexical/semantic scoring, MongoDB, and Redis-backed fast responses.',
     category: 'Full Stack',
     tech: ['React', 'Node.js', 'MongoDB', 'Redis', 'Docker', 'AI Chatbot', 'Hybrid Search'],
     githubUrl: 'https://github.com/khiemvuong/e-commerce-saas',
@@ -37,7 +38,7 @@ export const PROJECTS_DATA: Project[] = [
   {
     id: '2',
     title: 'English Vocabulary & Part 5 Learning App',
-    description: 'A serverless, offline-first English learning application designed for UIT students. All state, progress tracking, and custom vocab lists are managed locally via LocalStorage, offering zero-latency practice and part 5 mock tests.',
+    description: 'Offline-first TOEIC practice app with local progress tracking, custom vocab lists, and quick Part 5 drills.',
     category: 'Front-End',
     tech: ['React', 'LocalStorage', 'Tailwind CSS', 'Framer Motion', 'TypeScript'],
     githubUrl: 'https://github.com/khiemvuong/English_Vocab',
@@ -52,8 +53,8 @@ export const PROJECTS_DATA: Project[] = [
   },
   {
     id: '3',
-    title: 'Layerz.vn — Digital Artisan Platform',
-    description: 'Front-end design and full interface implementation for layerz.vn. Crafted high-fidelity interactive screens for Artisans showcase, Products catalogs, Brand Stories, and cybernetic Authentication (Login/Signup).',
+    title: 'Layerz.vn - Digital Artisan Platform',
+    description: 'Production frontend for artisan showcases, product catalogs, brand stories, and responsive auth screens.',
     category: 'Front-End',
     tech: ['Next.js', 'Tailwind CSS', 'Framer Motion', 'Responsive UI'],
     githubUrl: '#',
@@ -67,8 +68,8 @@ export const PROJECTS_DATA: Project[] = [
   },
   {
     id: '4',
-    title: 'OHAL Group — Corporate Website Redesign',
-    description: 'Served as the Frontend Lead for the official corporate website redesign. Architected the project codebase structure, designed the overall UI/UX layout, managed task delegation among frontend developers, and handled direct client communication.',
+    title: 'OHAL Group - Corporate Website Redesign',
+    description: 'Frontend lead work covering UI direction, codebase structure, task coordination, and client communication.',
     category: 'Front-End',
     tech: ['React', 'Next.js', 'TypeScript', 'Tailwind CSS', 'UI/UX Design', 'Team Leadership'],
     githubUrl: '#',
@@ -84,7 +85,7 @@ export const PROJECTS_DATA: Project[] = [
   {
     id: '5',
     title: 'Real-Time Multiplayer Board Game Suite',
-    description: 'High-performance real-time multiplayer platform featuring Avalon, Deception, and Werewolf. Built with server-authoritative architecture, Socket.io orchestration, WebRTC voice integration, and responsive 360° circular player layouts. Sub-100ms state synchronization with Redis caching.',
+    description: 'Server-authoritative multiplayer game suite with Socket.io sync, WebRTC voice, Redis caching, and responsive table layouts.',
     category: 'Full Stack',
     tech: ['Next.js', 'Node.js', 'Socket.io', 'Express', 'TypeScript', 'WebRTC', 'Redis', 'Docker'],
     githubUrl: 'https://github.com/khiemvuong/XizachOnline',
@@ -106,15 +107,17 @@ export const PROJECTS_DATA: Project[] = [
 ];
 
 // Renders a high-tech SVG graphic based on image identifier to guarantee stunning display without load failures
-export const renderProjectThumbnail = (type: string) => {
+export const renderProjectThumbnail = (type: string, alt = 'Project screenshot') => {
   if (type.startsWith('/') || type.endsWith('.png') || type.endsWith('.jpg') || type.endsWith('.jpeg')) {
     return (
       <div className="w-full aspect-1917/911 relative bg-[#0b0b18] overflow-hidden flex items-center justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img 
-          src={type} 
-          alt="Project Screenshot" 
-          className="w-full h-full object-cover transition-transform duration-500" 
+        <Image
+          src={type}
+          alt={alt}
+          fill
+          sizes="(max-width: 768px) 92vw, (max-width: 1280px) 42vw, 320px"
+          quality={72}
+          className="object-cover transition-transform duration-500"
           loading="lazy"
         />
       </div>
@@ -237,7 +240,7 @@ export default function ProjectCards() {
             >
               {/* Image/SVG Thumbnail with hover overlay */}
               <div className="relative video-cover-radius overflow-hidden border-b border-slate-900/60">
-                {renderProjectThumbnail(project.imageUrl)}
+                {renderProjectThumbnail(project.imageUrl, project.title)}
                 
                 {/* Glow Scanner Overlay bar on card hover */}
                 <div 
